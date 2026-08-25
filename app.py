@@ -5,65 +5,51 @@ from urllib.parse import urlparse
 
 
 # ============================================================
-# BIN PACKING ALGORITHMS
+# FIRST FIT
 # ============================================================
 
 def first_fit(items, capacity=1.0):
-    """
-    First Fit (FF)
-
-    Places each item into the first bin
-    where the item fits.
-    """
-
     bins = []
     bin_contents = []
 
     for item in items:
-
         placed = False
 
         for i, space in enumerate(bins):
-
             if space >= item:
-
                 bins[i] -= item
                 bin_contents[i].append(item)
-
                 placed = True
                 break
 
         if not placed:
-
             bins.append(capacity - item)
             bin_contents.append([item])
 
     return bin_contents
 
 
+# ============================================================
+# FIRST FIT DECREASING
+# ============================================================
+
 def first_fit_decreasing(items, capacity=1.0):
-    """
-    First Fit Decreasing (FFD)
+    return first_fit(
+        sorted(items, reverse=True),
+        capacity
+    )
 
-    Sorts items in decreasing order
-    and then applies First Fit.
-    """
 
-    sorted_items = sorted(items, reverse=True)
-
-    return first_fit(sorted_items, capacity)
-
+# ============================================================
+# BEST FIT DECREASING
+# ============================================================
 
 def best_fit_decreasing(items, capacity=1.0):
-    """
-    Best Fit Decreasing (BFD)
 
-    Sorts items in decreasing order and places
-    each item into the bin that leaves the
-    smallest remaining space.
-    """
-
-    sorted_items = sorted(items, reverse=True)
+    sorted_items = sorted(
+        items,
+        reverse=True
+    )
 
     bins = []
     bin_contents = []
@@ -77,11 +63,10 @@ def best_fit_decreasing(items, capacity=1.0):
 
             if space >= item:
 
-                remaining_space = space - item
+                remaining = space - item
 
-                if remaining_space < best_space:
-
-                    best_space = remaining_space
+                if remaining < best_space:
+                    best_space = remaining
                     best_idx = i
 
         if best_idx >= 0:
@@ -91,127 +76,33 @@ def best_fit_decreasing(items, capacity=1.0):
 
         else:
 
-            bins.append(capacity - item)
-            bin_contents.append([item])
+            bins.append(
+                capacity - item
+            )
+
+            bin_contents.append(
+                [item]
+            )
 
     return bin_contents
 
 
 # ============================================================
-# BIN INFORMATION
+# FORMAT ITEMS
 # ============================================================
 
-def get_bin_data(bins, capacity):
+def format_items(items):
 
-    result = []
-
-    for number, items in enumerate(bins, 1):
-
-        used = sum(items)
-
-        remaining = capacity - used
-
-        percentage = (used / capacity) * 100
-
-        result.append({
-            "number": number,
-            "items": items,
-            "used": used,
-            "remaining": remaining,
-            "percentage": percentage
-        })
-
-    return result
+    return "[" + ", ".join(
+        f"{x:.1f}" for x in items
+    ) + "]"
 
 
 # ============================================================
-# CREATE BIN HTML
+# CREATE SAMPLE OUTPUT
 # ============================================================
 
-def create_bins_html(bin_data):
-
-    html = ""
-
-    for data in bin_data:
-
-        items_html = ""
-
-        for item in data["items"]:
-
-            items_html += f"""
-            <span class="bin-item">
-                {item:.1f}
-            </span>
-            """
-
-        percentage = min(
-            max(data["percentage"], 0),
-            100
-        )
-
-        html += f"""
-        <div class="bin">
-
-            <div class="bin-header">
-
-                <h3>
-                    Bin {data["number"]}
-                </h3>
-
-                <span>
-                    {percentage:.0f}% Full
-                </span>
-
-            </div>
-
-            <div class="bin-items">
-
-                {items_html}
-
-            </div>
-
-            <div class="bin-info">
-
-                <span>
-                    Used:
-                    <strong>
-                        {data["used"]:.1f}
-                    </strong>
-                </span>
-
-                <span>
-                    Remaining:
-                    <strong>
-                        {data["remaining"]:.1f}
-                    </strong>
-                </span>
-
-            </div>
-
-            <div class="progress-container">
-
-                <div
-                    class="progress"
-                    style="width:{percentage}%;">
-                </div>
-
-            </div>
-
-        </div>
-        """
-
-    return html
-
-
-# ============================================================
-# GENERATE COMPLETE WEB PAGE
-# ============================================================
-
-def generate_page():
-
-    # --------------------------------------------------------
-    # INPUT
-    # --------------------------------------------------------
+def generate_output():
 
     items = [
         0.5,
@@ -228,10 +119,6 @@ def generate_page():
 
     capacity = 1.0
 
-    # --------------------------------------------------------
-    # CALCULATIONS
-    # --------------------------------------------------------
-
     total = sum(items)
 
     lower_bound = math.ceil(
@@ -239,7 +126,6 @@ def generate_page():
     )
 
     # Algorithms
-
     ff_bins = first_fit(
         items,
         capacity
@@ -255,60 +141,134 @@ def generate_page():
         capacity
     )
 
+    lines = []
+
     # --------------------------------------------------------
-    # BIN DATA
+    # INPUT
     # --------------------------------------------------------
 
-    ff_data = get_bin_data(
-        ff_bins,
-        capacity
+    lines.append(
+        f"Items: {format_items(items)}"
     )
 
-    ffd_data = get_bin_data(
-        ffd_bins,
-        capacity
+    lines.append(
+        f"Capacity: {capacity:.1f}"
     )
 
-    bfd_data = get_bin_data(
-        bfd_bins,
-        capacity
+    lines.append(
+        f"Sum of items: {total:.1f}"
+    )
+
+    lines.append(
+        f"Lower bound on bins: {lower_bound}"
+    )
+
+    lines.append("")
+
+    # --------------------------------------------------------
+    # DISPLAY FUNCTION
+    # --------------------------------------------------------
+
+    def add_algorithm(
+        title,
+        bins
+    ):
+
+        lines.append(
+            f"{title}: {len(bins)} bins"
+        )
+
+        for i, bin_items in enumerate(
+            bins,
+            1
+        ):
+
+            used = sum(bin_items)
+
+            # 20-character utilization bar
+            bar_length = int(
+                used * 20
+            )
+
+            bar = "#" * bar_length
+
+            bar = bar.ljust(
+                20
+            )
+
+            item_text = format_items(
+                bin_items
+            )
+
+            # Match sample layout
+            lines.append(
+                f"    Bin {i}: "
+                f"{item_text:<18} | "
+                f"Used: {used:.1f} "
+                f"[{bar}]"
+            )
+
+        lines.append("")
+
+    # --------------------------------------------------------
+    # FIRST FIT
+    # --------------------------------------------------------
+
+    add_algorithm(
+        "First Fit (FF)",
+        ff_bins
     )
 
     # --------------------------------------------------------
-    # INPUT ITEMS HTML
+    # FIRST FIT DECREASING
     # --------------------------------------------------------
 
-    items_html = ""
-
-    for item in items:
-
-        items_html += f"""
-        <span class="item">
-            {item:.1f}
-        </span>
-        """
-
-    # --------------------------------------------------------
-    # BIN HTML
-    # --------------------------------------------------------
-
-    ff_html = create_bins_html(
-        ff_data
-    )
-
-    ffd_html = create_bins_html(
-        ffd_data
-    )
-
-    bfd_html = create_bins_html(
-        bfd_data
+    add_algorithm(
+        "First Fit Decreasing (FFD)",
+        ffd_bins
     )
 
     # --------------------------------------------------------
-    # HTML PAGE
+    # BEST FIT DECREASING
     # --------------------------------------------------------
 
-    html = f"""
+    add_algorithm(
+        "Best Fit Decreasing (BFD)",
+        bfd_bins
+    )
+
+    # --------------------------------------------------------
+    # SUMMARY
+    # --------------------------------------------------------
+
+    lines.append(
+        f"Summary: "
+        f"Lower Bound={lower_bound}, "
+        f"FF={len(ff_bins)}, "
+        f"FFD={len(ffd_bins)}, "
+        f"BFD={len(bfd_bins)}"
+    )
+
+    return "\n".join(lines)
+
+
+# ============================================================
+# HTML PAGE
+# ============================================================
+
+def generate_page():
+
+    output = generate_output()
+
+    # Escape HTML special characters
+    output = (
+        output
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+    return f"""
 <!DOCTYPE html>
 
 <html lang="en">
@@ -321,386 +281,98 @@ def generate_page():
       content="width=device-width, initial-scale=1.0">
 
 <title>
-DAA - Bin Packing Problem
+Bin Packing Problem - Sample Output
 </title>
+
 
 <style>
 
-* {{
-    box-sizing: border-box;
-}}
+/* ============================================================
+   PAGE
+   ============================================================ */
 
 body {{
 
     margin: 0;
+
+    background: white;
 
     font-family:
         Arial,
         Helvetica,
         sans-serif;
 
-    background: #f4f6f8;
-
-    color: #222;
-
 }}
 
 
 /* ============================================================
-   HEADER
+   TITLE
    ============================================================ */
 
-.header {{
-
-    background: #171717;
-
-    color: white;
-
-    padding: 45px 20px;
-
-    text-align: center;
-
-}}
-
-.header h1 {{
-
-    margin: 0;
-
-    font-size: 36px;
-
-}}
-
-.header p {{
-
-    margin: 10px 0 0;
-
-    color: #cfcfcf;
-
-    font-size: 16px;
-
-}}
-
-
-/* ============================================================
-   MAIN CONTAINER
-   ============================================================ */
-
-.container {{
+.title {{
 
     width: 92%;
 
-    max-width: 1100px;
+    margin: 0 auto;
 
-    margin: 30px auto;
+    padding: 18px 0;
 
-}}
-
-
-/* ============================================================
-   CARDS
-   ============================================================ */
-
-.card {{
-
-    background: white;
-
-    border-radius: 14px;
-
-    padding: 28px;
-
-    margin-bottom: 25px;
-
-    box-shadow:
-        0 4px 18px
-        rgba(0,0,0,0.08);
-
-}}
-
-.card h2 {{
-
-    margin-top: 0;
-
-    margin-bottom: 15px;
-
-}}
-
-
-/* ============================================================
-   ITEMS
-   ============================================================ */
-
-.items {{
-
-    display: flex;
-
-    flex-wrap: wrap;
-
-    gap: 10px;
-
-    margin-top: 15px;
-
-}}
-
-.item {{
-
-    background: #222;
+    background: #217346;
 
     color: white;
 
-    padding: 9px 15px;
-
-    border-radius: 8px;
-
-    font-weight: bold;
-
-}}
-
-
-/* ============================================================
-   STATS
-   ============================================================ */
-
-.stats {{
-
-    display: flex;
-
-    flex-wrap: wrap;
-
-    gap: 18px;
-
-    margin-top: 25px;
-
-}}
-
-.stat {{
-
-    flex: 1;
-
-    min-width: 200px;
-
-    background: #f1f1f1;
-
-    border-radius: 12px;
-
-    padding: 20px;
-
     text-align: center;
 
-}}
-
-.stat-title {{
-
-    color: #666;
-
-    font-size: 14px;
-
-}}
-
-.stat-value {{
-
-    font-size: 30px;
+    font-size: 25px;
 
     font-weight: bold;
 
-    margin-top: 8px;
+    letter-spacing: 1px;
 
 }}
 
 
 /* ============================================================
-   TABLE
+   OUTPUT BOX
    ============================================================ */
 
-.table-wrapper {{
+.output-container {{
+
+    width: 88%;
+
+    margin: 32px auto;
+
+    background: #eaf5eb;
+
+    padding: 25px 30px;
+
+    border-radius: 0;
 
     overflow-x: auto;
 
 }}
 
-table {{
-
-    width: 100%;
-
-    border-collapse: collapse;
-
-    margin-top: 20px;
-
-}}
-
-th,
-td {{
-
-    border: 1px solid #ddd;
-
-    padding: 14px;
-
-    text-align: center;
-
-}}
-
-th {{
-
-    background: #222;
-
-    color: white;
-
-}}
-
-td {{
-
-    background: white;
-
-}}
-
 
 /* ============================================================
-   ALGORITHM RESULT
+   CONSOLE OUTPUT
    ============================================================ */
 
-.algorithm-description {{
-
-    color: #555;
-
-    line-height: 1.7;
-
-    margin-bottom: 20px;
-
-}}
-
-
-/* ============================================================
-   BIN
-   ============================================================ */
-
-.bin {{
-
-    border: 1px solid #ddd;
-
-    background: #fafafa;
-
-    border-radius: 12px;
-
-    padding: 18px;
-
-    margin-top: 15px;
-
-}}
-
-.bin-header {{
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    margin-bottom: 15px;
-
-}}
-
-.bin-header h3 {{
+pre {{
 
     margin: 0;
 
-}}
+    font-family:
+        "Courier New",
+        Courier,
+        monospace;
 
-.bin-header span {{
+    font-size: 15px;
 
-    font-size: 13px;
+    line-height: 1.55;
 
-    color: #666;
+    color: #222;
 
-}}
-
-.bin-items {{
-
-    display: flex;
-
-    flex-wrap: wrap;
-
-    gap: 8px;
-
-    margin-bottom: 15px;
-
-}}
-
-.bin-item {{
-
-    background: #e1e1e1;
-
-    padding: 7px 12px;
-
-    border-radius: 6px;
-
-    font-size: 14px;
-
-    font-weight: bold;
-
-}}
-
-.bin-info {{
-
-    display: flex;
-
-    gap: 25px;
-
-    flex-wrap: wrap;
-
-    color: #555;
-
-    font-size: 14px;
-
-}}
-
-
-/* ============================================================
-   PROGRESS
-   ============================================================ */
-
-.progress-container {{
-
-    height: 18px;
-
-    background: #ddd;
-
-    border-radius: 20px;
-
-    margin-top: 15px;
-
-    overflow: hidden;
-
-}}
-
-.progress {{
-
-    height: 100%;
-
-    background: #222;
-
-    border-radius: 20px;
-
-}}
-
-
-/* ============================================================
-   CONCLUSION
-   ============================================================ */
-
-.conclusion {{
-
-    line-height: 1.8;
-
-}}
-
-.result-box {{
-
-    background: #f1f1f1;
-
-    padding: 18px;
-
-    border-radius: 10px;
-
-    margin-top: 15px;
+    white-space: pre;
 
 }}
 
@@ -713,7 +385,9 @@ td {{
 
     text-align: center;
 
-    padding: 30px 20px;
+    margin-top: 30px;
+
+    margin-bottom: 30px;
 
     color: #666;
 
@@ -726,31 +400,27 @@ td {{
    MOBILE
    ============================================================ */
 
-@media (max-width: 600px) {{
+@media (max-width: 700px) {{
 
-    .header h1 {{
+    .title {{
 
-        font-size: 26px;
+        width: 94%;
 
-    }}
-
-    .container {{
-
-        width: 95%;
+        font-size: 21px;
 
     }}
 
-    .card {{
+    .output-container {{
+
+        width: 84%;
 
         padding: 20px;
 
     }}
 
-    .bin-info {{
+    pre {{
 
-        flex-direction: column;
-
-        gap: 5px;
+        font-size: 12px;
 
     }}
 
@@ -764,439 +434,19 @@ td {{
 <body>
 
 
-<!-- ==========================================================
-     HEADER
-     ========================================================== -->
+<div class="title">
 
-<div class="header">
-
-    <h1>
-        Bin Packing Problem
-    </h1>
-
-    <p>
-        DAA Lab - Greedy Approximation Algorithms
-    </p>
-
-    <p>
-        First Fit | First Fit Decreasing | Best Fit Decreasing
-    </p>
+    SAMPLE OUTPUT
 
 </div>
 
 
-<!-- ==========================================================
-     MAIN
-     ========================================================== -->
+<div class="output-container">
 
-<div class="container">
-
-
-<!-- ==========================================================
-     INPUT
-     ========================================================== -->
-
-<div class="card">
-
-    <h2>
-        Input
-    </h2>
-
-    <p>
-        <strong>
-            Bin Capacity:
-        </strong>
-
-        {capacity}
-    </p>
-
-    <p>
-        <strong>
-            Items:
-        </strong>
-    </p>
-
-    <div class="items">
-
-        {items_html}
-
-    </div>
-
-
-    <div class="stats">
-
-        <div class="stat">
-
-            <div class="stat-title">
-                Total Item Size
-            </div>
-
-            <div class="stat-value">
-                {total:.1f}
-            </div>
-
-        </div>
-
-
-        <div class="stat">
-
-            <div class="stat-title">
-                Theoretical Lower Bound
-            </div>
-
-            <div class="stat-value">
-                {lower_bound}
-            </div>
-
-        </div>
-
-    </div>
+<pre>{output}</pre>
 
 </div>
 
-
-<!-- ==========================================================
-     COMPARISON
-     ========================================================== -->
-
-<div class="card">
-
-    <h2>
-        Algorithm Comparison
-    </h2>
-
-    <div class="table-wrapper">
-
-        <table>
-
-            <tr>
-
-                <th>
-                    Algorithm
-                </th>
-
-                <th>
-                    Bins Used
-                </th>
-
-                <th>
-                    Lower Bound
-                </th>
-
-                <th>
-                    Extra Bins
-                </th>
-
-            </tr>
-
-
-            <tr>
-
-                <td>
-                    First Fit (FF)
-                </td>
-
-                <td>
-                    {len(ff_bins)}
-                </td>
-
-                <td>
-                    {lower_bound}
-                </td>
-
-                <td>
-                    {len(ff_bins) - lower_bound}
-                </td>
-
-            </tr>
-
-
-            <tr>
-
-                <td>
-                    First Fit Decreasing (FFD)
-                </td>
-
-                <td>
-                    {len(ffd_bins)}
-                </td>
-
-                <td>
-                    {lower_bound}
-                </td>
-
-                <td>
-                    {len(ffd_bins) - lower_bound}
-                </td>
-
-            </tr>
-
-
-            <tr>
-
-                <td>
-                    Best Fit Decreasing (BFD)
-                </td>
-
-                <td>
-                    {len(bfd_bins)}
-                </td>
-
-                <td>
-                    {lower_bound}
-                </td>
-
-                <td>
-                    {len(bfd_bins) - lower_bound}
-                </td>
-
-            </tr>
-
-        </table>
-
-    </div>
-
-</div>
-
-
-<!-- ==========================================================
-     FIRST FIT
-     ========================================================== -->
-
-<div class="card">
-
-    <h2>
-        First Fit (FF)
-    </h2>
-
-    <p class="algorithm-description">
-
-        Each item is processed in its original order.
-        The item is placed into the first bin that has
-        enough remaining capacity. If no bin can hold
-        the item, a new bin is created.
-
-    </p>
-
-    <p>
-        <strong>
-            Bins Used:
-        </strong>
-
-        {len(ff_bins)}
-    </p>
-
-    {ff_html}
-
-</div>
-
-
-<!-- ==========================================================
-     FIRST FIT DECREASING
-     ========================================================== -->
-
-<div class="card">
-
-    <h2>
-        First Fit Decreasing (FFD)
-    </h2>
-
-    <p class="algorithm-description">
-
-        Items are first sorted in decreasing order.
-        First Fit is then applied to the sorted items.
-
-    </p>
-
-    <p>
-        <strong>
-            Bins Used:
-        </strong>
-
-        {len(ffd_bins)}
-    </p>
-
-    {ffd_html}
-
-</div>
-
-
-<!-- ==========================================================
-     BEST FIT DECREASING
-     ========================================================== -->
-
-<div class="card">
-
-    <h2>
-        Best Fit Decreasing (BFD)
-    </h2>
-
-    <p class="algorithm-description">
-
-        Items are first sorted in decreasing order.
-        Each item is placed into the bin that leaves
-        the smallest possible remaining space.
-
-    </p>
-
-    <p>
-        <strong>
-            Bins Used:
-        </strong>
-
-        {len(bfd_bins)}
-    </p>
-
-    {bfd_html}
-
-</div>
-
-
-<!-- ==========================================================
-     CONCLUSION
-     ========================================================== -->
-
-<div class="card">
-
-    <h2>
-        Conclusion
-    </h2>
-
-    <div class="conclusion">
-
-        <p>
-            Total size of all items:
-            <strong>
-                {total:.1f}
-            </strong>
-        </p>
-
-        <p>
-            Theoretical minimum number of bins:
-            <strong>
-                {lower_bound}
-            </strong>
-        </p>
-
-
-        <div class="result-box">
-
-            <p>
-                <strong>
-                    First Fit:
-                </strong>
-
-                {len(ff_bins)} bins
-            </p>
-
-            <p>
-                <strong>
-                    First Fit Decreasing:
-                </strong>
-
-                {len(ffd_bins)} bins
-            </p>
-
-            <p>
-                <strong>
-                    Best Fit Decreasing:
-                </strong>
-
-                {len(bfd_bins)} bins
-            </p>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- ==========================================================
-     ALGORITHM EXPLANATION
-     ========================================================== -->
-
-<div class="card">
-
-    <h2>
-        Algorithm Explanation
-    </h2>
-
-
-    <h3>
-        1. First Fit
-    </h3>
-
-    <p class="algorithm-description">
-
-        Process each item in the original order.
-        Search the existing bins from the beginning.
-        Place the item in the first bin where it fits.
-        If no suitable bin exists, create a new bin.
-
-    </p>
-
-
-    <h3>
-        2. First Fit Decreasing
-    </h3>
-
-    <p class="algorithm-description">
-
-        Sort all items from largest to smallest.
-        Then apply the First Fit algorithm.
-
-    </p>
-
-
-    <h3>
-        3. Best Fit Decreasing
-    </h3>
-
-    <p class="algorithm-description">
-
-        Sort all items from largest to smallest.
-        For each item, check all available bins and
-        select the bin that leaves the smallest
-        remaining space after placement.
-
-    </p>
-
-
-    <h3>
-        Time Complexity
-    </h3>
-
-    <p>
-        First Fit:
-        <strong>
-            O(n²)
-        </strong>
-    </p>
-
-    <p>
-        First Fit Decreasing:
-        <strong>
-            O(n log n + n²)
-        </strong>
-    </p>
-
-    <p>
-        Best Fit Decreasing:
-        <strong>
-            O(n log n + n²)
-        </strong>
-    </p>
-
-</div>
-
-
-</div>
-
-
-<!-- ==========================================================
-     FOOTER
-     ========================================================== -->
 
 <div class="footer">
 
@@ -1210,33 +460,49 @@ td {{
 </html>
 """
 
-    return html
-
 
 # ============================================================
 # HTTP SERVER
 # ============================================================
 
-class BinPackingHandler(BaseHTTPRequestHandler):
+class BinPackingHandler(
+    BaseHTTPRequestHandler
+):
 
-    def send_page(self, send_body=True):
+
+    # --------------------------------------------------------
+    # SEND PAGE
+    # --------------------------------------------------------
+
+    def send_page(
+        self,
+        send_body=True
+    ):
 
         try:
 
-            # Parse URL
-            parsed_url = urlparse(self.path)
+            parsed_url = urlparse(
+                self.path
+            )
 
             # ------------------------------------------------
             # HOME PAGE
             # ------------------------------------------------
 
-            if parsed_url.path in ["", "/"]:
+            if parsed_url.path in [
+                "",
+                "/"
+            ]:
 
                 html = generate_page()
 
-                data = html.encode("utf-8")
+                data = html.encode(
+                    "utf-8"
+                )
 
-                self.send_response(200)
+                self.send_response(
+                    200
+                )
 
                 self.send_header(
                     "Content-Type",
@@ -1255,12 +521,17 @@ class BinPackingHandler(BaseHTTPRequestHandler):
 
                 self.end_headers()
 
-                # HEAD requests should not send content
+                # HEAD request should not
+                # send response body
+
                 if send_body:
 
-                    self.wfile.write(data)
+                    self.wfile.write(
+                        data
+                    )
 
                 return
+
 
             # ------------------------------------------------
             # FAVICON
@@ -1268,17 +539,22 @@ class BinPackingHandler(BaseHTTPRequestHandler):
 
             if parsed_url.path == "/favicon.ico":
 
-                self.send_response(204)
+                self.send_response(
+                    204
+                )
 
                 self.end_headers()
 
                 return
 
+
             # ------------------------------------------------
             # 404
             # ------------------------------------------------
 
-            self.send_response(404)
+            self.send_response(
+                404
+            )
 
             self.send_header(
                 "Content-Type",
@@ -1293,14 +569,15 @@ class BinPackingHandler(BaseHTTPRequestHandler):
                     b"404 - Page Not Found"
                 )
 
+
         except (
             BrokenPipeError,
             ConnectionResetError
         ):
 
-            # Browser/Render disconnected.
-            # This is not a server failure.
+            # Client disconnected.
             pass
+
 
         except Exception as error:
 
@@ -1310,9 +587,9 @@ class BinPackingHandler(BaseHTTPRequestHandler):
             )
 
 
-    # ========================================================
+    # --------------------------------------------------------
     # GET
-    # ========================================================
+    # --------------------------------------------------------
 
     def do_GET(self):
 
@@ -1321,9 +598,9 @@ class BinPackingHandler(BaseHTTPRequestHandler):
         )
 
 
-    # ========================================================
+    # --------------------------------------------------------
     # HEAD
-    # ========================================================
+    # --------------------------------------------------------
 
     def do_HEAD(self):
 
@@ -1332,26 +609,27 @@ class BinPackingHandler(BaseHTTPRequestHandler):
         )
 
 
-    # ========================================================
-    # LOGGING
-    # ========================================================
+    # --------------------------------------------------------
+    # DISABLE DEFAULT LOGS
+    # --------------------------------------------------------
 
-    def log_message(self, format, *args):
+    def log_message(
+        self,
+        format,
+        *args
+    ):
 
-        # Disable default HTTP logs.
-        pass
+        return
 
 
 # ============================================================
-# MAIN SERVER
+# START SERVER
 # ============================================================
 
 def main():
 
-    # Render provides PORT automatically.
-    #
-    # When running locally:
-    # http://localhost:10000
+    # Render gives PORT automatically.
+    # Local default = 10000
 
     port = int(
         os.environ.get(
@@ -1361,30 +639,13 @@ def main():
     )
 
     print(
-        "=================================================="
+        f"Bin Packing Server running on port {port}"
     )
-
-    print(
-        "Bin Packing Problem Server"
-    )
-
-    print(
-        f"Server running on port: {port}"
-    )
-
-    print(
-        "=================================================="
-    )
-
-
-    # Listen on all network interfaces.
-    # Required for Render.
 
     server = HTTPServer(
         ("0.0.0.0", port),
         BinPackingHandler
     )
-
 
     try:
 
@@ -1402,7 +663,7 @@ def main():
 
 
 # ============================================================
-# START APPLICATION
+# RUN
 # ============================================================
 
 if __name__ == "__main__":
